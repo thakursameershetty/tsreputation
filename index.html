@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realistic Vinyl Player with Playlist</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Satoshi:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Erode&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  
+  <style>
+    :root {
+      --base-color: #333;
+      --dark-highlight: #4a4a4a;
+      --dark-shadow: #1e1e1e;
+      --gold-color: #FFD700;
+      --gold-highlight: #FFEC8B;
+      --gold-shadow: #B8860B;
+      --disk-color: #111;
+      --tonearm-color: var(--gold-color);
+      --artwork-size: 120px;
+      --animation-duration: 3s;
+      --shimmer-color: rgba(255, 255, 255, 0.2);
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Satoshi', sans-serif;
+      color: #ccc;
+      background: radial-gradient(circle at 10% 10%, #222, #000);
+    }
+
+    .fixed-header {
+      width: 100%;
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      background: radial-gradient(circle at 10% 10%, #222, #000);
+      padding: 20px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      box-sizing: border-box;
+      gap: 50px;
+    }
+
+    .vinyl-player-container {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .vinyl-player-base {
+      width: 100%;
+      height: 100%;
+      border-radius: 25px;
+      background: linear-gradient(135deg, var(--dark-highlight), var(--base-color), var(--dark-shadow));
+      border: 2px solid #555;
+      position: absolute;
+      box-shadow:
+        inset 0 0 15px rgba(0, 0, 0, 0.5),
+        0 10px 20px rgba(0, 0, 0, 0.5),
+        0 0 5px rgba(255, 255, 255, 0.1);
+    }
+
+    .player-knob {
+      position: absolute;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold-highlight), var(--gold-color), var(--gold-shadow));
+      border: 2px solid #555;
+      box-shadow:
+        -2px -2px 5px var(--gold-highlight),
+        2px 2px 5px var(--gold-shadow);
+      z-index: 30;
+    }
+    .knob-bottom-left { bottom: 15px; left: 15px; }
+    .knob-bottom-right { bottom: 15px; right: 15px; }
+
+    .vinyl-disk-wrapper {
+      position: absolute;
+      width: 250px;
+      height: 200px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .vinyl-disk {
+      width: 200px;
+      height: 200px;
+      background-color: var(--disk-color);
+      border-radius: 50%;
+      border: 8px solid #222;
+      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8), 0 0 5px rgba(0, 0, 0, 0.5);
+      transition: transform 0.3s ease-in-out;
+      animation-play-state: paused;
+      position: relative;
+      overflow: hidden;
+      transform: rotate(0deg);
+    }
+
+    .vinyl-disk.is-playing {
+      animation: spin var(--animation-duration) linear infinite;
+    }
+
+    .vinyl-disk.rewind-spin {
+      animation: rewind-spin 0.5s linear;
+    }
+
+    .vinyl-disk.is-playing::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, var(--shimmer-color), transparent);
+      animation: shimmer 2s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes rewind-spin {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+
+    .artwork-disk {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: var(--artwork-size);
+      height: var(--artwork-size);
+      border-radius: 50%;
+      background-image: url("https://upload.wikimedia.org/wikipedia/en/f/f2/Taylor_Swift_-_Reputation.png");
+      background-size: cover;
+      background-position: center;
+      border: 3px solid #eee;
+      z-index: 2;
+    }
+
+    .label-hole {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 15px; height: 15px;
+      background-color: var(--disk-color);
+      border-radius: 50%;
+      border: 2px solid #fff;
+      z-index: 3;
+    }
+
+    .tonearm-pivot {
+      position: absolute;
+      right: 30px; top: 30px;
+      z-index: 20;
+    }
+    .tonearm-base {
+      width: 25px; height: 25px;
+      background: linear-gradient(to bottom, var(--gold-highlight), var(--gold-color), var(--gold-shadow));
+      border-radius: 50%;
+    }
+    .tonearm {
+      position: absolute;
+      left: 50%; top: 12px;
+      transform: translateX(-50%) rotate(45deg);
+      transform-origin: top;
+      width: 6px; height: 100px;
+      background: linear-gradient(to right, var(--gold-highlight), var(--gold-color), var(--gold-shadow));
+      border-radius: 5px;
+      transition: transform 0.5s ease-in-out;
+    }
+    .tonearm.is-playing { transform: translateX(-50%) rotate(0deg); }
+
+    .tonearm.rewind {
+      animation: rewind-tonearm 0.5s ease-in-out forwards;
+    }
+    @keyframes rewind-tonearm {
+      from { transform: translateX(-50%) rotate(0deg); }
+      to { transform: translateX(-50%) rotate(45deg); }
+    }
+
+    .stylus {
+      width: 12px; height: 20px;
+      background-color: #777;
+      position: absolute;
+      bottom: -5px; left: -3px;
+      border-radius: 3px;
+    }
+
+    .time-display {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        font-family: 'VT323', monospace;
+        font-size: 1.1em;
+        font-weight: normal;
+        color: var(--gold-color);
+        background: rgba(0, 0, 0, 0.4);
+        padding: 5px 10px;
+        border-radius: 5px;
+        opacity: 0.8;
+        z-index: 40;
+    }
+    
+    .album-info-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        height: 280px;
+    }
+
+    .album-info {
+        position: relative;
+    }
+
+    .album-title-container {
+      width: 600px; /* Fixed width for the text container */
+      white-space: nowrap;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .album-title, .song-title {
+        font-family: 'Satoshi', sans-serif;
+        font-size: 5rem;
+        color: #fff;
+        line-height: 1;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        display: inline-block;
+        transition: opacity 0.5s ease-in-out;
+    }
+    
+    .fade-out {
+      animation: fade-out 0.5s forwards;
+    }
+    
+    .fade-in {
+      animation: fade-in 0.5s forwards;
+    }
+    
+    .scrolling-title {
+        animation: scroll-text var(--scroll-duration) linear infinite;
+    }
+
+    @keyframes fade-out {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(-10px); }
+    }
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scroll-text {
+        to { transform: translateX(calc(-100% - 20px)); }
+    }
+    
+    .artist-name {
+      font-family: 'Erode', serif;
+      font-size: 1.5rem;
+      color: #fff;
+      opacity: 0.54;
+      margin-top: 10px;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: flex-start;
+    }
+    .controls button {
+      padding: 10px 20px;
+      font-size: 24px;
+      border: none;
+      border-radius: 24px;
+      background: var(--base-color);
+      color: #eee;
+      cursor: pointer;
+      box-shadow: -2px -2px 5px var(--dark-highlight),
+                  2px 2px 5px var(--dark-shadow);
+      transition: all 0.2s;
+      width: auto;
+      height: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .controls button:hover { background: #444; }
+    .controls button:active {
+      box-shadow: inset -2px -2px 5px var(--dark-highlight),
+                  inset 2px 2px 5px var(--dark-shadow);
+      transform: translateY(2px);
+    }
+    
+    .review-container {
+      width: 300px;
+      margin-left: 50px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 280px;
+    }
+    .review-header {
+      font-size: 1.5rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .review-stars {
+      color: var(--gold-color);
+      font-size: 1.5rem;
+    }
+    .review-text {
+      font-family: 'Erode', serif;
+      font-size: 0.9rem;
+      margin-top: 10px;
+      line-height: 1.4;
+      color: #ccc;
+    }
+
+    .scrollable-content {
+      width: 100%;
+      margin-top: 400px;
+      padding: 10px 0;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+    }
+
+    .playlist {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      width: 97.5%;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .track-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1a1a1a;
+      border-radius: 100px;
+      padding: 12px 16px;
+      transition: all 0.25s ease;
+      cursor: pointer;
+      border: 1px solid #333;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .track-item:hover {
+      background: #242424;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .track-item.is-playing {
+      background: #2d2d2d;
+    }
+
+    .track-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex: 1;
+      font-family: 'Satoshi', sans-serif;
+    }
+    .track-number {
+      font-weight: bold;
+      color: var(--gold-color);
+      width: 25px;
+      text-align: right;
+    }
+    .track-title {
+      color: #eee;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .more-options-btn {
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 1.2em;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .track-item:hover .more-options-btn { opacity: 1; }
+
+    /* Media Queries for Mobile Responsiveness */
+    @media (max-width: 900px) {
+        .fixed-header {
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .vinyl-player-container {
+            width: 240px;
+            height: 240px;
+        }
+
+        .vinyl-disk-wrapper, .vinyl-disk {
+            width: 180px;
+            height: 180px;
+        }
+
+        .artwork-disk {
+            --artwork-size: 100px;
+        }
+        
+        .album-info-container, .review-container {
+            align-items: center;
+            height: auto;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .album-title-container {
+          width: 300px;
+        }
+        .album-title, .song-title {
+            font-size: 3rem;
+        }
+        .artist-name {
+            font-size: 1.2rem;
+        }
+        .controls {
+            justify-content: center;
+        }
+
+        .review-container {
+            margin-left: 0;
+            width: 90%;
+            max-width: 400px;
+            text-align: left;
+        }
+        .review-text {
+            font-size: 0.8rem;
+        }
+        
+        .scrollable-content {
+            margin-top: 20px;
+        }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="fixed-header">
+    <div>
+      <div class="vinyl-player-container">
+        <div class="vinyl-player-base"></div>
+        <div class="player-knob knob-bottom-left"></div>
+        <div class="player-knob knob-bottom-right"></div>
+        <div class="vinyl-disk-wrapper">
+          <div id="vinylDisk" class="vinyl-disk">
+            <div class="artwork-disk"></div>
+            <div class="label-hole"></div>
+          </div>
+        </div>
+        <div class="tonearm-pivot">
+          <div class="tonearm-base"></div>
+          <div id="tonearm" class="tonearm"></div>
+          <div class="stylus"></div>
+        </div>
+        <div id="timeLeft" class="time-display">--:--</div>
+      </div>
+      <audio id="audioPlayer" src=""></audio>
+    </div>
+
+    <div class="album-info-container">
+      <div class="album-info">
+        <div id="albumTitleContainer" class="album-title-container">
+          <div id="albumTitle" class="album-title current-title">REPUTATION</div>
+        </div>
+        <div class="artist-name">Taylor Swift</div>
+      </div>
+      <div class="controls">
+        <button id="playBtn" class="material-icons-round">play_arrow</button>
+        <button id="pauseBtn" class="material-icons-round">pause</button>
+        <button id="stopBtn" class="material-icons-round">stop</button>
+      </div>
+    </div>
+    
+    <div id="reviewSection" class="review-container">
+      <div class="review-header">
+        <span id="reviewTitle">THE REVIEW</span>
+        <span id="reviewRating" class="review-stars"></span>
+      </div>
+      <p id="reviewText" class="review-text"></p>
+    </div>
+  </div>
+
+  <div class="scrollable-content">
+    <ul id="playlist" class="playlist"></ul>
+  </div>
+
+  <script>
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const vinylDisk = document.getElementById('vinylDisk');
+    const tonearm = document.getElementById('tonearm');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const playlistElement = document.getElementById('playlist');
+    const timeLeftElement = document.getElementById('timeLeft');
+    const reviewTextElement = document.getElementById('reviewText');
+    const reviewRatingElement = document.getElementById('reviewRating');
+    const albumTitleContainer = document.getElementById('albumTitleContainer');
+
+    const playlist = [
+      { 
+        title: "...Ready for It?", src: "assets/song1.mp3", 
+        review: { 
+          text: "Yes it was soo energetic as it gave anxiety while she was \"In the middle fl the night, in my dreams I know I'm gonna be with you, so I'll take my time Are you ready for it ?\" She said GRWM and I am ready for it along with it.",
+          rating: "4.3/5"
+        } 
+      },
+      { 
+        title: "End Game", src: "assets/song2.mp3", 
+        review: { 
+          text: "Wtfff was the colab ✨ it literally blow my mind when the pop suddenly shifted to rap and switched back to pop again and Ed Sheeran took the track into a multiverse with a multivitamin trance 🎀🔥 Just got uncontrollable goosebumps while the pop-rap was switchkng very subtly.",
+          rating: "4.9/5"
+        } 
+      },
+      { 
+        title: "I Did Something Bad", src: "assets/song3.mp3", 
+        review: { 
+          text: "A perfect Synth pop, the energy didn't loose yet still holds the power of the before one. It was good but.",
+          rating: "4.6/5"
+        } 
+      },
+      { 
+        title: "Don't Blame Me", src: "assets/song4.mp3", 
+        review: { 
+          text: "Wowww just woww this took me into a Synth trance. The beat. The wave is just moving with the tune. A perfect EDM the vibe for increased.",
+          rating: "4.8/5"
+        } 
+      },
+      { 
+        title: "Delicate", src: "assets/song5.mp3", 
+        review: { 
+          text: "The robot voice just switched into a subtle beat 😌 the perfect feel good pop song I listened after a long time",
+          rating: "4.65/5"
+        } 
+      },
+      { 
+        title: "Look What You Made Me Do", src: "assets/song6.mp3", 
+        review: { 
+          text: "A story time with swag . It was really a trance between the pop music how can we mix all the different kinds of pop music in a single track. As she said \"I got smarter, I got harder in the nick of time\" Yes she is 🔥",
+          rating: "4.7/5"
+        } 
+      },
+      { 
+        title: "So It Goes...", src: "assets/song7.mp3", 
+        review: { 
+          text: "So it goes... A Perfect Driving Partner ✨lyrics are still holding the vibe",
+          rating: "4.65/5"
+        } 
+      },
+      { 
+        title: "Gorgeous", src: "assets/song8.mp3", 
+        review: { 
+          text: "It's simply gorgeous. With all the beat goes subtly until the end like a sunset on an empty beach. A perfect vibe mountain climber",
+          rating: "4.75/5"
+        } 
+      },
+      { 
+        title: "Getaway Car", src: "assets/song9.mp3", 
+        review: { 
+          text: "Again a goosebumpy trance with perfect lyrics🎀 a perfect Synth wave pop 😌",
+          rating: "4.85/5"
+        } 
+      },
+      { 
+        title: "King of My Heart", src: "assets/song10.mp3", 
+        review: { 
+          text: "Acha hai rey ✨Nice lyrics still holds the vibe",
+          rating: "4.7/5"
+        } 
+      },
+      { 
+        title: "Dancing with Our Hands Tied", src: "assets/song11.mp3", 
+        review: { 
+          text: "It's not tooo good or not too bad it's just right cute. Eventhough I felt the vibe slightly dropped slowly because the lyrics still holds it with a rhythm",
+          rating: "4.3/5"
+        } 
+      },
+      { 
+        title: "Dress", src: "assets/song12.mp3", 
+        review: { 
+          text: "A perfect pop music 🎀😌 just increased the vibe an very good extent",
+          rating: "4.6/5"
+        } 
+      },
+      { 
+        title: "This Is Why We Can't Have Nice Things", src: "assets/song13.mp3", 
+        review: { 
+          text: "This is just an absolute blend of electronic music. It's just cute with with everything perfect.",
+          rating: "4.8/5"
+        } 
+      },
+      { 
+        title: "Call It What You Want", src: "assets/song14.mp3", 
+        review: { 
+          text: "It is great. Quite lyrical touch.",
+          rating: "4.75/5"
+        } 
+      },
+      { 
+        title: "New Year's Day", src: "assets/song15.mp3", 
+        review: { 
+          text: "Wowww the music of piano and guitar just blending sooo perfectly with the vocals and the lyrics describing the perfecting end it's just soo cute.",
+          rating: "4.85/5"
+        } 
+      }
+    ];
+
+    let currentTrackIndex = -1;
+
+    const formatTime = (time) => {
+      if (isNaN(time) || time < 0) return '--:--';
+      const minutes = Math.floor(time / 60);
+      const seconds = Math.floor(time % 60);
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const updateTimeLeft = () => {
+      if (!audioPlayer.paused && !isNaN(audioPlayer.duration)) {
+        const timeLeft = audioPlayer.duration - audioPlayer.currentTime;
+        timeLeftElement.textContent = formatTime(timeLeft);
+      } else if (currentTrackIndex !== -1) {
+        timeLeftElement.textContent = formatTime(audioPlayer.duration);
+      } else {
+        timeLeftElement.textContent = '--:--';
+      }
+    };
+    
+    const updateReview = (index) => {
+      if (index >= 0 && index < playlist.length) {
+        const reviewData = playlist[index].review;
+        reviewTextElement.textContent = reviewData.text;
+        reviewRatingElement.textContent = `(${reviewData.rating})`;
+      } else {
+        reviewTextElement.textContent = 'Hover over a song to see its review.';
+        reviewRatingElement.textContent = '';
+      }
+    };
+
+    const animateTitleChange = (newTitle) => {
+        const currentTitleEl = document.querySelector('.current-title');
+        
+        // Remove existing classes to reset animations
+        if (currentTitleEl) {
+            currentTitleEl.classList.remove('fade-in', 'scrolling-title');
+            currentTitleEl.classList.add('fade-out');
+        }
+
+        setTimeout(() => {
+            if (currentTitleEl) {
+                currentTitleEl.remove();
+            }
+
+            const newTitleEl = document.createElement('div');
+            newTitleEl.textContent = newTitle;
+            newTitleEl.classList.add('album-title', 'song-title', 'current-title', 'fade-in');
+            albumTitleContainer.appendChild(newTitleEl);
+            
+            // Check if the new title needs to scroll
+            setTimeout(() => {
+                if (newTitleEl.scrollWidth > albumTitleContainer.offsetWidth) {
+                    const scrollDuration = newTitle.length * 0.3; // Adjust speed
+                    newTitleEl.style.setProperty('--scroll-duration', `${scrollDuration}s`);
+                    newTitleEl.classList.add('scrolling-title');
+                }
+            }, 500); // Small delay to allow fade-in to start
+        }, 500); // This duration should match the CSS fade-out animation
+    };
+
+    const renderPlaylist = () => {
+      playlistElement.innerHTML = '';
+      playlist.forEach((track, index) => {
+        const trackItem = document.createElement('li');
+        trackItem.classList.add('track-item');
+        trackItem.dataset.index = index;
+        if (index === currentTrackIndex) trackItem.classList.add('is-playing');
+        trackItem.innerHTML = `
+          <div class="track-info">
+            <span class="track-number">${index + 1}</span>
+            <span class="track-title">${track.title}</span>
+          </div>
+          <div class="track-controls">
+            <button class="more-options-btn material-icons-round">more_vert</button>
+          </div>`;
+        
+        trackItem.addEventListener('mouseover', () => {
+          updateReview(index);
+        });
+
+        trackItem.addEventListener('mouseout', () => {
+          updateReview(currentTrackIndex); // Show current song review on mouseout
+        });
+        
+        playlistElement.appendChild(trackItem);
+      });
+    };
+
+    const playTrack = (index) => {
+      if (currentTrackIndex !== -1 && currentTrackIndex !== index) {
+        audioPlayer.pause();
+        vinylDisk.classList.remove('is-playing');
+        tonearm.classList.remove('is-playing');
+        
+        vinylDisk.classList.add('rewind-spin');
+        tonearm.classList.add('rewind');
+        
+        vinylDisk.addEventListener('animationend', () => {
+          vinylDisk.classList.remove('rewind-spin');
+          tonearm.classList.remove('rewind');
+          
+          setTimeout(() => {
+            startNewTrack(index);
+          }, 300);
+        }, { once: true });
+      } else {
+        startNewTrack(index);
+      }
+    };
+
+    const startNewTrack = (index) => {
+      if (index >= 0 && index < playlist.length) {
+        currentTrackIndex = index;
+        audioPlayer.src = playlist[currentTrackIndex].src;
+        audioPlayer.play();
+        vinylDisk.classList.add('is-playing');
+        tonearm.classList.add('is-playing');
+        vinylDisk.style.animationPlayState = 'running';
+        renderPlaylist();
+        animateTitleChange(playlist[index].title);
+        updateReview(index);
+      }
+    };
+
+    playBtn.addEventListener('click', () => {
+      if (audioPlayer.paused && currentTrackIndex !== -1) {
+        audioPlayer.play();
+        vinylDisk.classList.add('is-playing');
+        vinylDisk.style.animationPlayState = 'running';
+        tonearm.classList.add('is-playing');
+      } else if (currentTrackIndex === -1) {
+        playTrack(0);
+      }
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      audioPlayer.pause();
+      vinylDisk.style.animationPlayState = 'paused';
+      tonearm.classList.remove('is-playing');
+    });
+
+    stopBtn.addEventListener('click', () => {
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+      vinylDisk.classList.remove('is-playing');
+      tonearm.classList.remove('is-playing');
+      vinylDisk.style.animationPlayState = 'running';
+      currentTrackIndex = -1;
+      renderPlaylist();
+      updateTimeLeft();
+      updateReview(-1);
+      
+      const currentTitleEl = document.querySelector('.current-title');
+      if (currentTitleEl) {
+        currentTitleEl.remove();
+      }
+      const initialTitleEl = document.createElement('div');
+      initialTitleEl.id = 'albumTitle';
+      initialTitleEl.classList.add('album-title', 'current-title', 'fade-in');
+      initialTitleEl.textContent = 'REPUTATION';
+      albumTitleContainer.appendChild(initialTitleEl);
+    });
+
+    playlistElement.addEventListener('click', (e) => {
+      const clicked = e.target.closest('.track-item');
+      if (clicked) {
+        playTrack(parseInt(clicked.dataset.index, 10));
+      }
+    });
+
+    audioPlayer.addEventListener('ended', () => {
+      if (currentTrackIndex < playlist.length - 1) {
+        playTrack(currentTrackIndex + 1);
+      } else {
+        stopBtn.click();
+      }
+    });
+    
+    audioPlayer.addEventListener('timeupdate', updateTimeLeft);
+    audioPlayer.addEventListener('loadedmetadata', updateTimeLeft);
+    
+    renderPlaylist();
+    updateTimeLeft();
+    updateReview(-1);
+  </script>
+</body>
+</html>
